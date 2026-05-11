@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data — raw images and large files should NOT be committed
+data/raw/
+data/crops/
+data/yolo/images/
+
+# Keep folder structure via .gitkeep
+!data/raw/.gitkeep
+!data/crops/train/images/.gitkeep
+!data/crops/val/images/.gitkeep
+!data/yolo/images/train/.gitkeep
+!data/yolo/images/val/.gitkeep
+
+# Outputs
+outputs/debug_images/
+outputs/logs/
+
+# Keep reports
+!outputs/reports/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Model weights (too large for git)
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# Environment variables
+.env
+
+# Pytest
+.pytest_cache/

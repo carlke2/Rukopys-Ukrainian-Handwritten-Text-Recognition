@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────────
+# configs/recognizer.yaml  —  Text Recognizer Configuration
+# ─────────────────────────────────────────────────────────────────
+#
+# PURPOSE:
+#   All settings for the text recognition model.
+#   The recognizer reads a CROPPED region image and outputs text.
+#
+# WHY TRANSFORMER-BASED OCR:
+#   Classical OCR (Tesseract) struggles badly with Ukrainian
+#   handwriting. Transformer-based models such as TrOCR learn
+#   visual-to-text mappings directly from examples.
+#
+# RECOMMENDED MODEL OPTIONS:
+#   Option A (strong baseline):
+#     microsoft/trocr-base-handwritten
+#     → Trained on English handwriting. Fine-tune on Ukrainian crops.
+#
+#   Option B (multilingual):
+#     microsoft/trocr-large-printed
+#     → Good for printed text regions.
+#
+#   Option C (custom):
+#     Train a CTC-based model with a vision encoder (ViT/ResNet)
+#     and CTC head — more control, less compute.
+#
+# Start with Option A (trocr-base-handwritten) for handwritten
+# regions, then train a separate head for printed regions.
+
+# ── Base model ───────────────────────────────────────────────────
+base_model: "microsoft/trocr-base-handwritten"
+
+# ── Training hyperparameters ──────────────────────────────────────
+epochs:          30
+batch_size:      32           # reduce to 16 if GPU OOM
+eval_batch_size: 64
+max_seq_length:  256          # max output token length
+learning_rate:   5.0e-5
+warmup_steps:    500
+weight_decay:    0.01
+fp16:            true         # mixed precision — faster on GPU
+
+# ── Image preprocessing for recognizer ───────────────────────────
+# TrOCR expects 384x384 input by default.
+# We resize crops to this before feeding the model.
+target_height:   128          # crop height after resize
+target_width:    384          # crop width after resize
+
+# For printed text, a grayscale pass can help.
+grayscale_for_printed: false
+
+# ── Tokenizer settings ────────────────────────────────────────────
+# The tokenizer converts predicted token IDs back to Ukrainian text.
+tokenizer: "microsoft/trocr-base-handwritten"
+
+# ── Output ───────────────────────────────────────────────────────
+save_dir:    "outputs/recognizer_runs"
+best_model:  "outputs/recognizer_runs/best"
+
+# ── Evaluation ───────────────────────────────────────────────────
+# Primary metric is CER (Character Error Rate) — lower is better.
+# CER = (substitutions + insertions + deletions) / total characters
+primary_metric: "cer"
+metric_direction: "minimize"
+
+# ── Data paths ───────────────────────────────────────────────────
+train_labels:  "data/crops/train/labels.csv"
+val_labels:    "data/crops/val/labels.csv"
+train_images:  "data/crops/train/images"
+val_images:    "data/crops/val/images"
+
+# ── Device ───────────────────────────────────────────────────────
+device: "cuda"   # "cuda" or "cpu"
+
+# ── H100 constraint note ──────────────────────────────────────────
+# TrOCR-base at batch=32 uses ~8 GB VRAM → safe on H100 80 GB.
+# TrOCR-large at batch=16 uses ~20 GB VRAM → still safe.
+
+# ── Installation command (run only at training time) ─────────────
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# pip install transformers accelerate evaluate jiwer

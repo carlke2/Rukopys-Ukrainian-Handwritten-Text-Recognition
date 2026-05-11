@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────────────────────────
+# HANDWRITTEN-TO-DATA  ·  Training Requirements
+# ─────────────────────────────────────────────────────────────────
+#
+# ⚠️  DO NOT install this until the foundation readiness gate passes.
+# Run:  python -m src.data.bbox_validation
+#       python -m src.recognition.validate_crops
+#       python -m src.detection.validate_yolo
+# → When all gates say PASS, come back and install this file.
+#
+# Install with:
+#   pip install -r requirements-training.txt
+#
+# WHY EACH PACKAGE:
+#
+#   torch           — core deep learning engine (GPU tensors, autograd)
+#   torchvision     — image transforms, pretrained vision backbones
+#   transformers    — TrOCR and other VLM / OCR model support from HF
+#   accelerate      — seamlessly run training on CPU, single GPU, or multi-GPU
+#   ultralytics     — YOLOv8/v11 detector: training, inference, export
+#   evaluate        — Hugging Face evaluation library (WER, CER helpers)
+#   jiwer           — Word Error Rate and Character Error Rate computation
+#
+# ─────────────────────────────────────────────────────────────────
+# BASE FIRST — make sure base requirements are installed:
+#   pip install -r requirements.txt
+# ─────────────────────────────────────────────────────────────────
+
+torch>=2.2.0
+torchvision>=0.17.0
+transformers>=4.40.0
+accelerate>=0.29.0
+ultralytics>=8.2.0
+evaluate>=0.4.0
+jiwer>=3.0.0

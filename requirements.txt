@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────
+# HANDWRITTEN-TO-DATA  ·  Base Requirements (Foundation Stage)
+# ─────────────────────────────────────────────────────────────
+# Install with:  pip install -r requirements.txt
+#
+# WHY EACH PACKAGE EXISTS:
+#
+#   datasets         — Hugging Face library to stream/load the RUKOPYS dataset
+#   huggingface_hub  — authenticate with HF Hub, manage dataset tokens
+#   pandas           — read/write CSV files, filter and manipulate tabular data
+#   numpy            — numerical arrays, coordinate math, stat calculations
+#   Pillow           — open, save, crop, and resize images (pure Python)
+#   opencv-python    — image preprocessing: denoise, threshold, deskew, contours
+#   matplotlib       — draw bounding boxes, plot distributions, save debug images
+#   tqdm             — progress bars for loops over thousands of images
+#   scikit-learn     — stratified train/validation split
+#   PyYAML           — read/write YAML config files (data.yaml, detector.yaml …)
+#
+# ─── DO NOT ADD TORCH / ULTRALYTICS / TRANSFORMERS HERE YET ───
+# Those are heavy and are only needed at training time.
+# See configs/detector.yaml and configs/recognizer.yaml for the
+# exact commands to install them when you reach training stage.
+
+datasets>=2.18.0
+huggingface_hub>=0.22.0
+pandas>=2.0.0
+numpy>=1.24.0
+Pillow>=10.0.0
+opencv-python>=4.9.0
+matplotlib>=3.8.0
+tqdm>=4.66.0
+scikit-learn>=1.4.0
+PyYAML>=6.0.1

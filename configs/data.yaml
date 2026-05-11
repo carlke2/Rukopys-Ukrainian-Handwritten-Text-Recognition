@@ -1,0 +1,127 @@
+# ─────────────────────────────────────────────────────────────────
+# configs/data.yaml  —  Dataset & Path Configuration
+# ─────────────────────────────────────────────────────────────────
+#
+# PURPOSE:
+#   This file is the single source of truth for all paths and
+#   dataset-level settings. Every script imports it through
+#   src/utils/paths.py instead of hardcoding strings.
+#
+# WHY THIS MATTERS:
+#   If you move the project to Kaggle or Colab, you only change
+#   the paths here — nothing else in the codebase breaks.
+
+# ── Hugging Face dataset identifier ──────────────────────────────
+hf_dataset_id: "UkrainianCatholicUniversity/rukopys"
+
+# ── Dataset splits available on Hugging Face ─────────────────────
+# "train"  → human-verified annotations  (use for training)
+# "silver" → auto-generated annotations  (use for later self-training)
+# "test"   → no ground-truth labels      (used to build submission)
+hf_splits:
+  - train
+  - silver
+  - test
+
+# ── Local raw data root ───────────────────────────────────────────
+# After downloading / caching, images and metadata land here.
+raw_root: "data/raw"
+
+raw_train_images:    "data/raw/train/images"
+raw_silver_images:   "data/raw/silver/images"
+raw_test_images:     "data/raw/test/images"
+
+raw_train_meta:      "data/raw/train/metadata.jsonl"
+raw_silver_meta:     "data/raw/silver/metadata.jsonl"
+raw_test_meta:       "data/raw/test/metadata.jsonl"
+
+sample_submission:   "data/raw/sample_submission.csv"
+
+# ── Processed split files ─────────────────────────────────────────
+processed_root:   "data/processed"
+train_split:      "data/processed/train_split.jsonl"
+val_split:        "data/processed/val_split.jsonl"
+dataset_stats:    "data/processed/dataset_stats.json"
+
+# ── Recognition crops ─────────────────────────────────────────────
+crops_root:        "data/crops"
+crops_train_img:   "data/crops/train/images"
+crops_train_csv:   "data/crops/train/labels.csv"
+crops_val_img:     "data/crops/val/images"
+crops_val_csv:     "data/crops/val/labels.csv"
+
+# ── YOLO detection dataset ────────────────────────────────────────
+yolo_root:          "data/yolo"
+yolo_train_images:  "data/yolo/images/train"
+yolo_val_images:    "data/yolo/images/val"
+yolo_train_labels:  "data/yolo/labels/train"
+yolo_val_labels:    "data/yolo/labels/val"
+yolo_data_yaml:     "data/yolo/data.yaml"
+
+# ── Submissions ───────────────────────────────────────────────────
+submissions_dir:    "data/submissions"
+
+# ── Output directories ────────────────────────────────────────────
+debug_images_dir:        "outputs/debug_images"
+preprocessing_debug_dir: "outputs/debug_images/preprocessing"
+reports_dir:             "outputs/reports"
+logs_dir:                "outputs/logs"
+
+# ── Region type definitions ───────────────────────────────────────
+#
+# Each region type has:
+#   id           → integer class id used by the detector
+#   color        → BGR color for bounding box visualization
+#   text_bearing → whether this region type contains readable text
+#
+region_types:
+  handwritten:
+    id: 0
+    color: [0, 255, 0]        # green
+    text_bearing: true
+  printed:
+    id: 1
+    color: [0, 0, 255]        # red
+    text_bearing: true
+  formula:
+    id: 2
+    color: [255, 165, 0]      # orange
+    text_bearing: true
+  table:
+    id: 3
+    color: [255, 0, 255]      # magenta
+    text_bearing: true
+  annotation:
+    id: 4
+    color: [0, 255, 255]      # cyan
+    text_bearing: true
+  image:
+    id: 5
+    color: [128, 128, 128]    # gray
+    text_bearing: false
+  graph:
+    id: 6
+    color: [64, 0, 128]       # purple
+    text_bearing: false
+
+# Number of region classes (used by detector head)
+num_classes: 7
+
+# ── Scorable region criteria ──────────────────────────────────────
+# A region is "scorable" (counts toward competition metric) when:
+#   - language   = "uk"        (Ukrainian)
+#   - legibility = "legible"   (readable)
+#   - type NOT IN image, graph (visual-only regions have no text)
+#   - text is non-empty
+scorable_languages:    ["uk"]
+scorable_legibility:   ["legible"]
+non_text_types:        ["image", "graph"]
+
+# ── Train / validation split ratio ───────────────────────────────
+val_fraction: 0.15    # 15% of train data becomes local validation
+random_seed:  42
+
+# ── Minimum crop dimensions (pixels) ─────────────────────────────
+# Crops smaller than this are too tiny to learn from.
+min_crop_width:  16
+min_crop_height: 8
