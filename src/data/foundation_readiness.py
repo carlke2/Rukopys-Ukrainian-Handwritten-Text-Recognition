@@ -29,7 +29,7 @@ from src.utils.paths import DATA_CFG, get_path, ensure_dir
 # ── Helper ────────────────────────────────────────────────────────
 
 def _check(label: str, condition: bool, fix: str = "") -> tuple[bool, str]:
-    icon   = "✅" if condition else "❌"
+    icon   = "[PASS]" if condition else "[FAIL]"
     msg    = f"  {icon}  {label}"
     if not condition and fix:
         msg += f"\n      FIX: {fix}"
@@ -275,13 +275,13 @@ def print_checklist(results: list[tuple[bool, str]]) -> int:
     print(f"  {passed_count}/{len(results)} checks passed")
 
     if failures == 0:
-        print("\n  🎉  FOUNDATION COMPLETE — SAFE TO BEGIN TRAINING 🎉")
+        print("\n  OK  FOUNDATION COMPLETE — SAFE TO BEGIN TRAINING")
         print("\n  Next steps:")
         print("    1. pip install -r requirements-training.txt")
         print("    2. Detector:   see configs/detector.yaml for training cmd")
         print("    3. Recognizer: see configs/recognizer.yaml for training cmd")
     else:
-        print(f"\n  ❌  {failures} check(s) failed. Fix them before training.")
+        print(f"\n  FAIL  {failures} check(s) failed. Fix them before training.")
 
     print("=" * 65)
     return failures
@@ -293,7 +293,7 @@ def save_readiness_report(results: list[tuple[bool, str]]) -> Path:
     report_path = report_dir / "foundation_readiness_report.md"
 
     failures = sum(1 for ok, _ in results if not ok)
-    overall  = "✅ READY FOR TRAINING" if failures == 0 else f"❌ {failures} CHECKS FAILING"
+    overall  = "PASS READY FOR TRAINING" if failures == 0 else f"FAIL {failures} CHECKS FAILING"
 
     lines = [
         "# Foundation Readiness Report\n\n",
@@ -302,15 +302,15 @@ def save_readiness_report(results: list[tuple[bool, str]]) -> Path:
     ]
 
     for i, (passed, msg) in enumerate(results, start=1):
-        icon = "✅" if passed else "❌"
+        icon = "PASS" if passed else "FAIL"
         # strip the icon from msg since we're adding it separately
-        clean_msg = msg.strip().lstrip("✅❌ ")
+        clean_msg = msg.strip().lstrip("PASSFAIL[] ")
         lines.append(f"- [{icon}] **{i:02d}.** {clean_msg}\n")
 
     lines.append("\n---\n\n")
     if failures == 0:
         lines.append(
-            "## 🎉 Foundation Complete\n\n"
+            "## Foundation Complete\n\n"
             "All readiness gates passed. Install training requirements:\n\n"
             "```bash\n"
             "pip install -r requirements-training.txt\n"
@@ -320,13 +320,13 @@ def save_readiness_report(results: list[tuple[bool, str]]) -> Path:
         )
     else:
         lines.append(
-            "## ❌ Action Required\n\n"
+            "## Action Required\n\n"
             "Fix the failing checks above before starting training.\n"
             "Each ❌ item includes a FIX command.\n"
         )
 
     report_path.write_text("".join(lines), encoding="utf-8")
-    print(f"\n  ✅ Readiness report saved → {report_path}")
+    print(f"\n  PASS Readiness report saved -> {report_path}")
     return report_path
 
 

@@ -73,25 +73,24 @@ def evaluate(
     verbose: bool = True,
 ) -> dict:
     """
-    Run full local evaluation.
-
-    Args:
-        pred_map:      {filename: [predicted regions]}
-        gt_map:        {filename: [ground-truth regions]}
-        iou_threshold: IoU threshold for a detection to count as TP
-        verbose:       print results
-
-    Returns:
-        dict with all metric values
+    Run full local evaluation including Page CER and Official Score.
     """
+    from src.postprocessing.reading_order import sort_regions
+    from src.postprocessing.normalize_text import normalize
+
     all_tp = all_fp = all_fn = 0
     all_type_correct = all_type_total = 0
+    
+    # For Region-level CER
     all_pred_texts, all_gt_texts = [], []
+    
+    # For Page-level CER
+    page_cers = []
 
     for fname, gt_regions in gt_map.items():
         pred_regions = pred_map.get(fname, [])
 
-        # ── Detection + type accuracy ─────────────────────────────
+        # 1. Detection + type accuracy
         match = match_predictions(pred_regions, gt_regions, iou_threshold)
         all_tp           += match["tp"]
         all_fp           += match["fp"]
@@ -99,8 +98,7 @@ def evaluate(
         all_type_correct += match["type_correct"]
         all_type_total   += match["tp"]
 
-        # ── CER on scorable GT regions ────────────────────────────
-        # For each GT scorable region, find best matching pred and compare text
+        # 2. Region CER (on matched scorable regions)
         for gt_r in gt_regions:
             if (gt_r.get("language") != "uk"
                     or gt_r.get("legibility") != "legible"
@@ -109,9 +107,8 @@ def evaluate(
                 continue
 
             gt_bbox = gt_r["bbox"]
-            gt_text = gt_r["text"].strip()
+            gt_text = normalize(gt_r["text"])
 
-            # Find best IoU-matched prediction
             best_iou  = 0.0
             best_text = ""
             for pr in pred_regions:
@@ -123,12 +120,24 @@ def evaluate(
                     pass
                 if iou > best_iou:
                     best_iou  = iou
-                    best_text = pr.get("text", "").strip()
+                    best_text = normalize(pr.get("text", ""))
 
             all_gt_texts.append(gt_text)
             all_pred_texts.append(best_text if best_iou >= iou_threshold else "")
 
-    # ── Aggregate metrics ─────────────────────────────────────────
+        # 3. Page CER
+        # Sort both by reading order and join
+        sorted_gt = sort_regions(gt_regions)
+        sorted_pr = sort_regions(pred_regions)
+        
+        gt_page_text = " ".join(normalize(r.get("text", "")) for r in sorted_gt if r.get("type") not in NON_TEXT)
+        pr_page_text = " ".join(normalize(r.get("text", "")) for r in sorted_pr if r.get("type") not in NON_TEXT)
+        
+        if gt_page_text.strip():
+            page_cer = compute_cer(pr_page_text, gt_page_text)
+            page_cers.append(page_cer)
+
+    # Aggregate metrics
     precision = all_tp / (all_tp + all_fp) if (all_tp + all_fp) > 0 else 0.0
     recall    = all_tp / (all_tp + all_fn) if (all_tp + all_fn) > 0 else 0.0
     det_f1    = (2*precision*recall / (precision+recall)
@@ -136,27 +145,42 @@ def evaluate(
     type_acc  = all_type_correct / all_type_total if all_type_total > 0 else 0.0
 
     cer_result = compute_batch_cer(all_pred_texts, all_gt_texts)
-    corpus_cer = cer_result["corpus_cer"]
+    region_cer = cer_result["corpus_cer"]
+    
+    mean_page_cer = sum(page_cers) / len(page_cers) if page_cers else 0.0
+
+    # Official Score Formula:
+    # Score = 0.15 * Detection_F1 + 0.05 * ClassAcc + 0.30 * (1 - CER) + 0.50 * (1 - PageCER)
+    official_score = (
+        0.15 * det_f1 +
+        0.05 * type_acc +
+        0.30 * max(0, 1 - region_cer) +
+        0.50 * max(0, 1 - mean_page_cer)
+    )
 
     results = {
-        "detection_precision": precision,
-        "detection_recall":    recall,
         "detection_f1":        det_f1,
         "type_accuracy":       type_acc,
-        "corpus_cer":          corpus_cer,
+        "region_cer":          region_cer,
+        "page_cer":            mean_page_cer,
+        "official_score":      official_score,
         "num_images":          len(gt_map),
         "num_scorable":        len(all_gt_texts),
     }
 
     if verbose:
         print("\n" + "="*55)
-        print("  LOCAL EVALUATION RESULTS")
+        print("  LOCAL EVALUATION RESULTS (COMPOSITE)")
         print("="*55)
         print(f"  Images evaluated  : {results['num_images']:,}")
         print(f"  Scorable regions  : {results['num_scorable']:,}")
-        print(f"  Detection F1      : {det_f1:.4f}  ({det_f1*100:.2f}%)")
-        print(f"  Type accuracy     : {type_acc:.4f}  ({type_acc*100:.2f}%)")
-        print(f"  Corpus CER        : {corpus_cer:.4f}  ({corpus_cer*100:.2f}%)")
+        print("-" * 55)
+        print(f"  1. Detection F1   : {det_f1:.4f}  (weight 0.15)")
+        print(f"  2. Type Accuracy  : {type_acc:.4f}  (weight 0.05)")
+        print(f"  3. Region CER     : {region_cer:.4f}  (weight 0.30)")
+        print(f"  4. Page CER       : {mean_page_cer:.4f}  (weight 0.50)")
+        print("-" * 55)
+        print(f"  >>> OFFICIAL SCORE: {official_score:.4f} <<<")
         print("="*55)
 
     return results

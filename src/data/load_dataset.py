@@ -70,17 +70,16 @@ def load_split(split: str, cache_dir: str | None = None):
             "Run: pip install datasets"
         )
 
-    print(f"[load_split] Loading '{split}' split from {HF_DATASET_ID} …")
+    print(f"[load_split] Loading '{split}' split from {HF_DATASET_ID} ...")
     print("  (First run downloads data; subsequent runs use local cache.)")
 
     ds = hf_load(
         HF_DATASET_ID,
         split=split,
         cache_dir=cache_dir,
-        trust_remote_code=True,
     )
 
-    print(f"[load_split] ✅ Loaded {len(ds):,} samples from '{split}'")
+    print(f"[load_split] OK Loaded {len(ds):,} samples from '{split}'")
     return ds
 
 
@@ -102,12 +101,11 @@ def stream_split(split: str) -> Iterator[dict]:
     except ImportError:
         raise ImportError("Run: pip install datasets")
 
-    print(f"[stream_split] Streaming '{split}' from {HF_DATASET_ID} …")
+    print(f"[stream_split] Streaming '{split}' from {HF_DATASET_ID} ...")
     ds = hf_load(
         HF_DATASET_ID,
         split=split,
         streaming=True,
-        trust_remote_code=True,
     )
     yield from ds
 
@@ -135,7 +133,7 @@ def save_split_as_jsonl(ds_or_split, split_name: str) -> Path:
     out_dir = ensure_dir(get_path("processed_root"))
     out_path = out_dir / f"{split_name}_raw.jsonl"
 
-    print(f"[save_split_as_jsonl] Writing metadata → {out_path}")
+    print(f"[save_split_as_jsonl] Writing metadata -> {out_path}")
 
     # Columns that exist in all splits
     meta_cols = [
@@ -155,7 +153,7 @@ def save_split_as_jsonl(ds_or_split, split_name: str) -> Path:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
             count += 1
 
-    print(f"[save_split_as_jsonl] ✅ Saved {count:,} records → {out_path}")
+    print(f"[save_split_as_jsonl] OK Saved {count:,} records -> {out_path}")
     return out_path
 
 
@@ -179,7 +177,7 @@ def load_from_jsonl(split_name: str) -> list[dict]:
             f"Run save_split_as_jsonl('{split_name}') first."
         )
     records = read_jsonl(path)
-    print(f"[load_from_jsonl] ✅ Loaded {len(records):,} records from {path}")
+    print(f"[load_from_jsonl] OK Loaded {len(records):,} records from {path}")
     return records
 
 
@@ -202,14 +200,35 @@ if __name__ == "__main__":
         action="store_true",
         help="Also save metadata as local JSONL files",
     )
+    parser.add_argument(
+        "--export-images",
+        action="store_true",
+        help="Export actual images to data/raw/ (slow!)",
+    )
     args = parser.parse_args()
 
     for split in args.splits:
-        ds = load_split(split)
-        print(f"  Split '{split}': {len(ds):,} samples")
-        print(f"  Columns: {ds.column_names}")
-        if args.save_jsonl:
-            save_split_as_jsonl(ds, split)
+        if args.save_jsonl and not args.export_images:
+            # If we only want metadata, streaming is much faster and avoids disk bloat
+            print(f"[main] Streaming {split} to local JSONL (metadata only) ...")
+            save_split_as_jsonl(stream_split(split), split)
+        else:
+            # If we want images, we need the full dataset (non-streaming is safer for export)
+            ds = load_split(split)
+            print(f"  Split '{split}': {len(ds):,} samples")
+            
+            if args.save_jsonl:
+                save_split_as_jsonl(ds, split)
+                
+            if args.export_images:
+                from src.utils.paths import get_path, ensure_dir
+                img_dir = ensure_dir(get_path(f"raw_{split}_images"))
+                print(f"[main] Exporting {len(ds):,} images to {img_dir} ...")
+                for sample in tqdm(ds, desc=f"Exporting {split} images"):
+                    fname = sample["file_name"]
+                    img = sample["image"]
+                    if img:
+                        img.save(img_dir / fname)
 
-    print("\n✅ Done. Dataset is cached locally.")
+    print("\nOK Done.")
     print("   Next step: python -m src.data.inspect_dataset")

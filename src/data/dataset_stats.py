@@ -45,6 +45,9 @@ def compute_stats(records: list[dict]) -> dict:
         "legibility_distribution": defaultdict(int),
         "text_length_distribution": {"0": 0, "1-10": 0, "11-50": 0,
                                       "51-200": 0, "201+": 0},
+        "bbox_size_distribution": {
+            "tiny (<1%)": 0, "small (1-5%)": 0, "medium (5-20%)": 0, "large (>20%)": 0
+        },
         "scorable_regions": 0,
         "non_text_types": DATA_CFG.get("non_text_types", ["image", "graph"]),
     }
@@ -55,6 +58,9 @@ def compute_stats(records: list[dict]) -> dict:
         stats["num_images"] += 1
         source = rec.get("source", "unknown")
         stats["images_by_source"][source] += 1
+        
+        img_w = rec.get("image_width", 1)
+        img_h = rec.get("image_height", 1)
 
         regions = rec.get("regions", [])
         if isinstance(regions, str):
@@ -66,10 +72,26 @@ def compute_stats(records: list[dict]) -> dict:
             lang  = r.get("language", "unknown")
             leg   = r.get("legibility", "unknown")
             text  = r.get("text", "")
+            bbox  = r.get("bbox", [])
 
             stats["regions_by_type"][rtype] += 1
             stats["language_distribution"][lang] += 1
             stats["legibility_distribution"][leg] += 1
+
+            # BBox size distribution (relative area)
+            if isinstance(bbox, list) and len(bbox) == 4:
+                x1, y1, x2, y2 = bbox
+                bw, bh = (x2 - x1), (y2 - y1)
+                rel_area = (bw * bh) / (img_w * img_h)
+                
+                if rel_area < 0.01:
+                    stats["bbox_size_distribution"]["tiny (<1%)"] += 1
+                elif rel_area < 0.05:
+                    stats["bbox_size_distribution"]["small (1-5%)"] += 1
+                elif rel_area < 0.20:
+                    stats["bbox_size_distribution"]["medium (5-20%)"] += 1
+                else:
+                    stats["bbox_size_distribution"]["large (>20%)"] += 1
 
             # Text length bucket
             tlen = len(text)
@@ -133,6 +155,10 @@ def print_stats(stats: dict) -> None:
     for k, v in stats["text_length_distribution"].items():
         print(f"    {k:<14}: {v:,}")
 
+    print(f"\n  BBox size distribution (relative area):")
+    for k, v in stats["bbox_size_distribution"].items():
+        print(f"    {k:<14}: {v:,}")
+
 
 def save_stats(stats: dict, name: str = "train") -> None:
     """Save stats to JSON and a Markdown report."""
@@ -152,8 +178,12 @@ def save_stats(stats: dict, name: str = "train") -> None:
     lines.append("## Regions by type\n| Type | Count |\n|------|-------|\n")
     for k, v in sorted(stats["regions_by_type"].items(), key=lambda x: -x[1]):
         lines.append(f"| {k} | {v:,} |\n")
+    
+    lines.append("\n## BBox size distribution\n| Size | Count |\n|------|-------|\n")
+    for k, v in stats["bbox_size_distribution"].items():
+        lines.append(f"| {k} | {v:,} |\n")
     md_path.write_text("".join(lines), encoding="utf-8")
-    print(f"  ✅ Report saved → {md_path}")
+    print(f"  OK Report saved -> {md_path}")
 
 
 if __name__ == "__main__":

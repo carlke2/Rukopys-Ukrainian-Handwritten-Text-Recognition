@@ -69,7 +69,7 @@ def inspect_sample(sample: dict, sample_idx: int = 0) -> None:
             and rtype not in ("image", "graph")
             and bool(text.strip())
         )
-        print(f"       scorable={'✅ YES' if scorable else '❌ NO'}")
+        print(f"       scorable={'PASS YES' if scorable else 'FAIL NO'}")
 
     if len(regions) > 3:
         print(f"\n  … {len(regions)-3} more regions not shown.")
@@ -101,4 +101,4 @@ if __name__ == "__main__":
     else:
         inspect_from_hf(args.split, args.sample_idx)
 
-    print("\n✅ Done. Next: python -m src.visualization.draw_bboxes")
+    print("\nOK Done. Next: python -m src.visualization.draw_bboxes")
